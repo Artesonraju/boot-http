@@ -52,7 +52,17 @@ boot serve -d target wait   # or at the REPL: (boot (serve :dir "target") (wait)
 That would serve the `target` directory if it exists. Instead of specifying a directory,
 you can also specify a ring handler:
 
-#### 3. Start server with given Ring handler
+#### 3. Serve files and forward to an api server
+
+```bash
+boot serve -f "{:path \"/api\" :address \"http://remote.server:3001\"}" wait
+# or at the REPL: (boot (serve :forward {:path "/api" :address "http://remote.server:3001"}) (wait))
+```
+
+That would forward requests with an url starting with "/api" to the remote server,
+and serve the `target` directory if it exists.
+
+#### 4. Start server with given Ring handler
 
 ```bash
 boot serve -H myapp.server/app -R wait   # (boot (serve :handler 'myapp.server/app :reload true) (wait))

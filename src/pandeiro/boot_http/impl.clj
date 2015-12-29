@@ -95,19 +95,27 @@
 ;;
 ;; Jetty / HTTP Kit
 ;;
-(defn server [{:keys [port httpkit] :as opts}]
+(defn server [{:keys [port httpkit forward] :as opts}]
   (if httpkit
     (require 'org.httpkit.server)
     (require 'ring.adapter.jetty))
-  (let [handler (or (ring-handler opts)
-                    (dir-handler opts)
-                    (resources-handler opts))
+  (when (seq forward)
+    (require 'puppetlabs.ring-middleware.core))
+  (let [handler (-> (or (ring-handler opts)
+                      (dir-handler opts)
+                      (resources-handler opts))
+                    (wrap-content-type)
+                    (wrap-not-modified))
         run     (if httpkit
                   (resolve 'org.httpkit.server/run-server)
-                  (resolve 'ring.adapter.jetty/run-jetty))]
-    (run (-> handler
-           (wrap-content-type)
-           (wrap-not-modified))
+                  (resolve 'ring.adapter.jetty/run-jetty))
+        proxied (if (seq forward)
+                  (let [wrap-proxy (resolve 'puppetlabs.ring-middleware.core/wrap-proxy)
+                        {:keys [path address] :or {path "/" address "http://127.0.0.1"}} forward]
+                    (util/info "Forwarding %s urls to %s\n" path address)
+                    (wrap-proxy handler path address))
+                  handler)]
+    (run proxied
       {:port port :join? false})))
 
 ;;

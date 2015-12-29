@@ -8,6 +8,9 @@
 
 (def default-port 3000)
 
+(def forward-dep
+  '[puppetlabs/ring-middleware "0.2.2"])
+
 (def serve-deps
   '[[ring/ring-core "1.4.0"]
     [ring/ring-devel "1.4.0"]])
@@ -37,13 +40,15 @@
    k httpkit            bool "Use Http-kit server instead of Jetty"
    s silent             bool "Silent-mode (don't output anything)"
    R reload             bool "Reload modified namespaces on each request."
-   n nrepl         REPL edn  "nREPL server parameters e.g. \"{:port 3001, :bind \"0.0.0.0\"}\""]
+   n nrepl         REPL edn  "nREPL server parameters e.g. \"{:port 3001, :bind \"0.0.0.0\"}\""
+   f forward       FWD  edn  "forward parameters e.g. \"{:path \"/api\" :address \"http://localhost:3001\"}\""]
 
   (let [port        (or port default-port)
         server-dep  (if httpkit httpkit-dep jetty-dep)
         deps        (cond-> serve-deps
-                      true        (conj server-dep)
-                      (seq nrepl) (conj nrepl-dep))
+                      true          (conj server-dep)
+                      (seq nrepl)   (conj nrepl-dep)
+                      (seq forward) (conj forward-dep))
         worker      (pod/make-pod (update-in (core/get-env) [:dependencies]
                                              into deps))
         server-name (if httpkit "HTTP Kit" "Jetty")
@@ -57,7 +62,7 @@
                          (http/server
                           {:dir ~dir, :port ~port, :handler '~handler,
                            :reload '~reload, :env-dirs ~(vec (:directories pod/env)), :httpkit ~httpkit,
-                           :resource-root ~resource-root}))
+                           :resource-root ~resource-root :forward ~forward}))
                        (def nrepl-server
                          (when ~nrepl
                            (http/nrepl-server {:nrepl ~nrepl}))))
